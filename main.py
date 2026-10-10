@@ -5,8 +5,8 @@ from datetime import datetime, timezone
 
 app = FastAPI(
     title="Quotex Stable Market API",
-    version="6.2.0",
-    description="Stable & Error-Free Market Data API with Math Module"
+    version="7.0.0",
+    description="24/7 Uptime Stable Market & Candle Data API"
 )
 
 def is_weekend() -> bool:
@@ -17,13 +17,14 @@ def is_weekend() -> bool:
 def root():
     return {
         "status": "online",
-        "service": "Quotex Stable API is Running",
-        "is_weekend": is_weekend()
+        "service": "Quotex Stable API is Active",
+        "is_weekend": is_weekend(),
+        "timestamp": int(time.time())
     }
 
 @app.get("/api/v1/markets")
 def get_live_markets():
-    """সবগুলো মার্কেটের তালিকা এবং পে-আউট প্রদান করে।"""
+    """সবগুলো মার্কেটের তালিকা এবং বর্তমান পে-আউট প্রদান করে।"""
     weekend = is_weekend()
     
     markets = [
@@ -72,7 +73,10 @@ def get_live_candles(
     period: int = Query(60, example=60),
     count: int = Query(100, example=100)
 ):
-    """নির্দিষ্ট মার্কেটের ক্যান্ডেল ডাটা ফেচ করে।"""
+    """নির্দিষ্ট মার্কেটের ক্যান্ডেল ডাটা প্রদান করে।"""
+    if is_weekend() and not symbol.endswith("_otc"):
+        raise HTTPException(status_code=400, detail="Real Market is closed on weekends. Use OTC pairs.")
+        
     now = int(time.time())
     current_candle_start = now - (now % period)
     candles = []
@@ -81,6 +85,8 @@ def get_live_candles(
     
     for i in range(count - 1, -1, -1):
         c_time = current_candle_start - (i * period)
+        
+        # Mathematical candle calculation without external crashing dependencies
         open_p = base_price + (math.sin(c_time / 100) * 0.001)
         close_p = open_p + (math.cos(c_time / 50) * 0.0008)
         high_p = max(open_p, close_p) + 0.0003
