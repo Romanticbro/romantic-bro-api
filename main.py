@@ -1,24 +1,13 @@
-import os
 import time
-import asyncio
-import logging
+import math
 from fastapi import FastAPI, Query, HTTPException
 from datetime import datetime, timezone
 
-# Logging setup
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("QuotexWebSocketAPI")
-
 app = FastAPI(
-    title="Quotex Live WebSocket & Market API",
-    version="5.0.0",
-    description="Real-time WebSocket synchronized Payouts & Live Candles API"
+    title="Quotex Stable Market API",
+    version="6.2.0",
+    description="Stable & Error-Free Market Data API with Math Module"
 )
-
-# Environment variables from Render Dashboard
-QUOTEX_EMAIL = os.getenv("QUOTEX_EMAIL", "")
-QUOTEX_PASSWORD = os.getenv("QUOTEX_PASSWORD", "")
-QUOTEX_SSID = os.getenv("QUOTEX_SSID", "")
 
 def is_weekend() -> bool:
     """Check if market is closed on weekends (UTC)."""
@@ -28,22 +17,17 @@ def is_weekend() -> bool:
 def root():
     return {
         "status": "online",
-        "service": "Quotex Live WebSocket Synchronized API",
-        "auth_configured": bool(QUOTEX_EMAIL or QUOTEX_SSID),
+        "service": "Quotex Stable API is Running",
         "is_weekend": is_weekend()
     }
 
 @app.get("/api/v1/markets")
 def get_live_markets():
-    """
-    ব্রোকার পে-আউট এবং মার্কেট স্ট্যাটাস ফেচ করার রুট। 
-    ওয়েবসকেট কানেকশন ব্যাকগ্রাউন্ডে রান হয়ে লাইভ পে-আউট সিঙ্ক করবে।
-    """
+    """সবগুলো মার্কেটের তালিকা এবং পে-আউট প্রদান করে।"""
     weekend = is_weekend()
     
-    # লাইভ ব্রোকার সিঙ্কড পে-আউট স্ট্রাকচার
     markets = [
-        {"symbol": "EURUSD_otc", "payout": 94, "is_otc": True, "status": "OPEN"},
+        {"symbol": "BRLUSD_otc", "payout": 94, "is_otc": True, "status": "OPEN"},
         {"symbol": "USDMXN_otc", "payout": 94, "is_otc": True, "status": "OPEN"},
         {"symbol": "USDIDR_otc", "payout": 93, "is_otc": True, "status": "OPEN"},
         {"symbol": "USDINR_otc", "payout": 93, "is_otc": True, "status": "OPEN"},
@@ -78,34 +62,25 @@ def get_live_markets():
         
     return {
         "status": "success",
-        "sync_mode": "WebSocket Real-time Active",
         "count": len(markets),
         "markets": markets
     }
 
 @app.get("/api/v1/live-candles")
 def get_live_candles(
-    symbol: str = Query(..., example="EURUSD_otc"),
+    symbol: str = Query(..., example="BRLUSD_otc"),
     period: int = Query(60, example=60),
-    count: int = Query(500, example=500)
+    count: int = Query(100, example=100)
 ):
-    """
-    নির্দিষ্ট টাইমফ্রেম এবং কাউন্ট অনুযায়ী লাইভ ক্যান্ডেল ডাটা প্রদান করে।
-    """
-    if is_weekend() and not symbol.endswith("_otc"):
-        raise HTTPException(status_code=400, detail="Real Market is closed on weekends. Use OTC pairs.")
-        
+    """নির্দিষ্ট মার্কেটের ক্যান্ডেল ডাটা ফেচ করে।"""
     now = int(time.time())
     current_candle_start = now - (now % period)
     candles = []
     
-    # Real-time base pricing simulation synchronized with broker tick structure
-    base_price = 1.08500 if "EUR" in symbol else 150.00
+    base_price = 5.2500 if "BRL" in symbol else 1.08500
     
     for i in range(count - 1, -1, -1):
         c_time = current_candle_start - (i * period)
-        
-        # Real-time tick mathematical sync
         open_p = base_price + (math.sin(c_time / 100) * 0.001)
         close_p = open_p + (math.cos(c_time / 50) * 0.0008)
         high_p = max(open_p, close_p) + 0.0003
